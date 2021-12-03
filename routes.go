@@ -154,7 +154,7 @@ func putKey(c *gin.Context) {
 	}
 
 	// broadcast
-	go broadcastKvsPut(key, value, metadata, localAddress)
+	go broadcastKvsPut(key, value, currMetadata, localAddress)
 }
 
 func deleteKey(c *gin.Context) {
@@ -341,6 +341,21 @@ func repPutKey(c *gin.Context) {
 
 	sender := data["sender"].(string)
 
+	// Check if correct shard
+	// if incorrect just update causal metaData, but don't actually stor the data
+	shardId := ring.GetShardId(key)
+	if shardId != localShardId {
+		//just update the meta data and check error
+		err = kvsDb.putJustMetadata(metadata, sender)
+		if err == ErrInvalidMetadata {
+			sendServiceUnavailable(c)
+		} else if err != nil {
+			c.JSON(123, gin.H{"error": err.Error()})
+		}
+		c.JSON(http.StatusOK, gin.H{"result": "complete"})
+		return
+	}
+
 	// add data to kvs database
 	_, _, err = kvsDb.PutData(key, value, metadata, sender)
 	if err == ErrInvalidMetadata {
@@ -365,6 +380,21 @@ func repDeleteKey(c *gin.Context) {
 	metadata := getMetadataFromInterface(data["causal-metadata"])
 
 	sender := data["sender"].(string)
+
+	// Check if correct shard
+	// if incorrect just update causal metaData, but don't actually stor the data
+	shardId := ring.GetShardId(key)
+	if shardId != localShardId {
+		//just update the meta data and check error
+		err = kvsDb.putJustMetadata(metadata, sender)
+		if err == ErrInvalidMetadata {
+			sendServiceUnavailable(c)
+		} else if err != nil {
+			c.JSON(123, gin.H{"error": err.Error()})
+		}
+		c.JSON(http.StatusOK, gin.H{"result": "complete"})
+		return
+	}
 
 	// add data to kvs database
 	_, err = kvsDb.DeleteData(key, metadata, sender)
@@ -446,5 +476,21 @@ func testDataDump(c *gin.Context) {
 		"kvsDb": kvsDb,
 		"ring":  ring,
 		"view":  view,
+	})
+}
+
+func testViewDump(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"view": view,
+	})
+}
+func testKvsDump(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"kvsDb": kvsDb,
+	})
+}
+func testRingDump(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"ring": ring,
 	})
 }

@@ -19,7 +19,7 @@ func sendServiceUnavailable(c *gin.Context) {
 // sends a single message to the node specified and returns the responce
 // If the responce code is 503 (Service Unavailable) is retries until
 // a different status code is returned or timeout
-func sendSingleMsg(node string, endpoint string, method string, contentType string, data []byte) (*http.Response, error) {
+func sendSingleMsg(node string, endpoint string, method string, contentType string, data []byte, shouldRetry bool) (*http.Response, error) {
 	nodeUrl := "http://" + node + endpoint
 
 	// Loop on doing request until responce or timeout
@@ -44,7 +44,7 @@ func sendSingleMsg(node string, endpoint string, method string, contentType stri
 		}
 
 		// if status code anything but 503, break
-		if resp.StatusCode != http.StatusServiceUnavailable {
+		if resp.StatusCode != http.StatusServiceUnavailable || !shouldRetry {
 			return resp, nil
 		}
 	}
@@ -54,11 +54,11 @@ func sendSingleMsg(node string, endpoint string, method string, contentType stri
 // and attempts to send the message to the first node that will respond
 // In other words, it picks a node, and if that node doesn't respond it moves to the
 // next node on the list
-func sendMsgToGroup(nodes map[string]struct{}, endpoint string, method string, contentType string, data []byte) (*http.Response, error) {
+func sendMsgToGroup(nodes map[string]struct{}, endpoint string, method string, contentType string, data []byte, shouldRetry bool) (*http.Response, error) {
 	// Send msg to each node in list until responce
 	for node := range nodes {
-		res, err := sendSingleMsg(node, endpoint, method, contentType, data)
-		if err != nil {
+		res, err := sendSingleMsg(node, endpoint, method, contentType, data, shouldRetry)
+		if err == nil {
 			return res, nil
 		}
 	}
@@ -71,7 +71,7 @@ func sendMsgToGroup(nodes map[string]struct{}, endpoint string, method string, c
 // Sends the specified message data to all nodes listed
 func sendBroadcastMsg(nodes map[string]struct{}, endpoint string, method string, contentType string, data []byte) {
 	for node := range nodes {
-		go sendSingleMsg(node, endpoint, method, contentType, data)
+		go sendSingleMsg(node, endpoint, method, contentType, data, true)
 	}
 }
 
@@ -193,7 +193,7 @@ func getRingData() *Ring {
 		http.MethodGet,
 		"application/json",
 		make([]byte, 0),
-	)
+		true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -219,7 +219,8 @@ func sendKeyValNoChecks(key string, val interface{}, node string) {
 		"/rep/shard/kvs",
 		http.MethodPut,
 		"application/json",
-		jsonData)
+		jsonData,
+		true)
 }
 
 func broadcastKeyValNoChecks(key string, val interface{}, nodes map[string]struct{}) {

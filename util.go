@@ -47,7 +47,8 @@ func getShardData(shardId int) {
 		"/rep/clone-shard-data",
 		http.MethodGet,
 		"application/json",
-		make([]byte, 1))
+		make([]byte, 1),
+		true)
 
 	if err != nil {
 		log.Fatal(err)
@@ -88,12 +89,10 @@ func removeLocalAddressFromMap(mp map[string]struct{}) map[string]struct{} {
 func proxyToShard(c *gin.Context, endpoint string, shardId int) {
 
 	// Get body data from context
-	var reqData []byte
-	if c.Request.ContentLength > 0 {
-		readCLoser, _ := c.Request.GetBody()
-		reqData, _ = io.ReadAll(readCLoser)
-	} else {
-		reqData = make([]byte, 0)
+	reqData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(123, gin.H{"error": err.Error()})
+		return
 	}
 
 	// send client request to shard and get responce
@@ -102,9 +101,11 @@ func proxyToShard(c *gin.Context, endpoint string, shardId int) {
 		endpoint,
 		c.Request.Method,
 		c.ContentType(),
-		reqData)
+		reqData,
+		false)
 	if err != nil {
 		c.JSON(123, gin.H{"error": err.Error()})
+		return
 	}
 
 	// send the responce from the shard back to the OG client

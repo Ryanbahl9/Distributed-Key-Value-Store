@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const DEFAULT_TIMEOUT = time.Second * 3
+var DEFAULT_TIMEOUT = time.Second * 3
 
 var kvsDb *KeyValStoreDatabase
 var view *View
@@ -15,14 +15,15 @@ var localShardId int
 var localAddress string
 
 func main() {
-	testing := true
 
 	// Parse Environment Variables
 	localAdd, initialView, initialShardCount, shardCountExists := parseEnvironmentVariables()
 	localAddress = localAdd
 
 	// --- For Testing ---
+	testing := false
 	if testing {
+		DEFAULT_TIMEOUT = time.Second * 100000000
 		initialView = []string{"localhost:8090", "localhost:8091", "localhost:8092", "localhost:8093"}
 		localAddress = "localhost:8090"
 		initialShardCount = 2
@@ -69,6 +70,9 @@ func main() {
 	router.GET("/rep/clone-shard-data", repCloneShardData)
 
 	router.GET("/test", testDataDump)
+	router.GET("/test/view", testViewDump)
+	router.GET("/test/kvs", testKvsDump)
+	router.GET("/test/ring", testRingDump)
 
 	//FOR TESTING
 	if testing {

@@ -78,6 +78,22 @@ func (kvs *KeyValStoreDatabase) PutData(key string, value interface{}, metadata 
 	return !wasCreated, currentMetadata, nil
 }
 
+// exactly the same as PutData, but it doesn't actually stor the data
+func (kvs *KeyValStoreDatabase) putJustMetadata(metadata map[string]int, sender string) error {
+	// Lock Database
+	kvs.Lock()
+	defer kvs.Unlock()
+
+	// check if metadata valid
+	metadataValid := kvs.IsMetadataValid(metadata, sender)
+	if !metadataValid {
+		return ErrInvalidMetadata
+	}
+
+	kvs.incrementMetadata(sender)
+	return nil
+}
+
 func (kvs *KeyValStoreDatabase) PutDataNoChecks(key string, value interface{}) {
 	kvs.Data[key] = value
 }
