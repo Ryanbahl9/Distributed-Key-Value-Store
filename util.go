@@ -88,8 +88,13 @@ func removeLocalAddressFromMap(mp map[string]struct{}) map[string]struct{} {
 func proxyToShard(c *gin.Context, endpoint string, shardId int) {
 
 	// Get body data from context
-	readCLoser, _ := c.Request.GetBody()
-	reqData, _ := io.ReadAll(readCLoser)
+	var reqData []byte
+	if c.Request.ContentLength > 0 {
+		readCLoser, _ := c.Request.GetBody()
+		reqData, _ = io.ReadAll(readCLoser)
+	} else {
+		reqData = make([]byte, 0)
+	}
 
 	// send client request to shard and get responce
 	res, err := sendMsgToGroup(
@@ -99,10 +104,23 @@ func proxyToShard(c *gin.Context, endpoint string, shardId int) {
 		c.ContentType(),
 		reqData)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 	}
 
 	// send the responce from the shard back to the OG client
 	resData, _ := io.ReadAll(res.Body)
 	c.Data(res.StatusCode, res.Header.Get("Content-Type"), resData)
+}
+
+func getMetadataFromInterface(i interface{}) map[string]int {
+	metadata := make(map[string]int)
+	if i == nil {
+		metadata = make(map[string]int)
+	} else {
+		tempData := i.(map[string]interface{})
+		for key, val := range tempData {
+			metadata[key] = int(val.(float64))
+		}
+	}
+	return metadata
 }

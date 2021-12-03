@@ -35,14 +35,12 @@ func (kvs *KeyValStoreDatabase) GetData(key string, metadata map[string]int) (va
 	// Check metadata
 	metadataValid := kvs.IsMetadataValid(metadata, kvs.LocalAddress)
 	if !metadataValid {
-		kvs.Unlock()
 		return nil, nil, ErrInvalidMetadata
 	}
 
 	// Check if key exists in map
 	value, existed := kvs.Data[key]
 	if !existed {
-		kvs.Unlock()
 		return nil, nil, ErrKeyNotFound
 	}
 
@@ -61,8 +59,7 @@ func (kvs *KeyValStoreDatabase) PutData(key string, value interface{}, metadata 
 
 	metadataValid := kvs.IsMetadataValid(metadata, sender)
 	if !metadataValid {
-		kvs.Unlock()
-		return false, nil, ErrInvalidMetadata
+		return false, kvs.copyMetadata(), ErrInvalidMetadata
 	}
 
 	// Check if key already exists in map
@@ -94,15 +91,13 @@ func (kvs *KeyValStoreDatabase) DeleteData(key string, metadata map[string]int, 
 	// Check metadata
 	metadataValid := kvs.IsMetadataValid(metadata, sender)
 	if !metadataValid {
-		kvs.Unlock()
-		return nil, ErrInvalidMetadata
+		return kvs.copyMetadata(), ErrInvalidMetadata
 	}
 
 	// Check if key exists in map
 	_, existed := kvs.Data[key]
 	if !existed {
-		kvs.Unlock()
-		return nil, ErrKeyNotFound
+		return kvs.copyMetadata(), ErrKeyNotFound
 	}
 
 	// Delete data from map
@@ -142,11 +137,7 @@ func (kvs *KeyValStoreDatabase) IsMetadataValid(incomingMetadata map[string]int,
 }
 
 func (kvs *KeyValStoreDatabase) incrementMetadata(sender string) {
-	if sender == kvs.LocalAddress {
-		kvs.Metadata[kvs.LocalAddress] = kvs.Metadata[kvs.LocalAddress] + 1
-	} else {
-		kvs.Metadata[sender] = kvs.Metadata[sender] + 1
-	}
+	kvs.Metadata[sender] = kvs.Metadata[sender] + 1
 }
 
 func (kvs *KeyValStoreDatabase) copyMetadata() map[string]int {

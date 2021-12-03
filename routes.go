@@ -82,10 +82,10 @@ func getKey(c *gin.Context) {
 	// get the json data from the body
 	data, err := parseKeysFromBody(c, "causal-metadata")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no address specified"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no causal-metadata specified"})
 		return
 	}
-	metadata := data["causal-metadata"].(map[string]int)
+	metadata := getMetadataFromInterface(data["causal-metadata"])
 
 	// Make change in local kvs database and check for errors
 	val, currMetadata, err := kvsDb.GetData(key, metadata)
@@ -96,7 +96,7 @@ func getKey(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Key does not exist"})
 		return
 	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -122,7 +122,7 @@ func putKey(c *gin.Context) {
 		return
 	}
 	value := data["value"]
-	metadata := data["causal-metadata"].(map[string]int)
+	metadata := getMetadataFromInterface(data["causal-metadata"])
 
 	// check if key is under char limit
 	if len(key) > 50 {
@@ -142,7 +142,7 @@ func putKey(c *gin.Context) {
 		sendServiceUnavailable(c)
 		return
 	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -173,7 +173,7 @@ func deleteKey(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "causal-metadata not specified"})
 		return
 	}
-	metadata := data["causal-metadata"].(map[string]int)
+	metadata := getMetadataFromInterface(data["causal-metadata"])
 
 	// put key and check for errors
 	currMetadata, err := kvsDb.DeleteData(key, metadata, localAddress)
@@ -184,7 +184,7 @@ func deleteKey(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Key does not exist"})
 		return
 	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -202,7 +202,7 @@ func getNodeShardId(c *gin.Context) {
 	if localShardId != -1 {
 		c.JSON(http.StatusOK, gin.H{"node-shard-id": localShardId})
 	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Node not assigned to a Shard"})
+		c.JSON(123, gin.H{"error": "Node not assigned to a Shard"})
 	}
 }
 
@@ -310,7 +310,7 @@ func putReshard(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -333,11 +333,12 @@ func repPutKey(c *gin.Context) {
 	// get data from request body
 	data, err := parseKeysFromBody(c, "key", "value", "causal-metadata", "sender")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 	}
 	key := data["key"].(string)
 	value := data["value"]
-	metadata := data["causal-metadata"].(map[string]int)
+	metadata := getMetadataFromInterface(data["causal-metadata"])
+
 	sender := data["sender"].(string)
 
 	// add data to kvs database
@@ -346,7 +347,7 @@ func repPutKey(c *gin.Context) {
 		sendServiceUnavailable(c)
 		return
 	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -358,10 +359,11 @@ func repDeleteKey(c *gin.Context) {
 	// get data from request body
 	data, err := parseKeysFromBody(c, "key", "causal-metadata", "sender")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 	}
 	key := data["key"].(string)
-	metadata := data["causal-metadata"].(map[string]int)
+	metadata := getMetadataFromInterface(data["causal-metadata"])
+
 	sender := data["sender"].(string)
 
 	// add data to kvs database
@@ -373,7 +375,7 @@ func repDeleteKey(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Key does not exist"})
 		return
 	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -385,7 +387,7 @@ func repAddNodeToShard(c *gin.Context) {
 	// get shard-id and socket-address of the node from the json data
 	data, err := parseKeysFromBody(c, "shard-id", "socket-address")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 	}
 	shardId, _ := data["shard-id"].(int)
 	nodeAddress, _ := data["socket-address"].(string)
@@ -419,7 +421,7 @@ func repPutKeyNoChecks(c *gin.Context) {
 	// get data from request body
 	data, err := parseKeysFromBody(c, "key", "value")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(123, gin.H{"error": err.Error()})
 	}
 	key := data["key"].(string)
 	value := data["value"]

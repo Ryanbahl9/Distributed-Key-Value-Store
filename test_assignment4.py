@@ -156,106 +156,106 @@ class TestHW4(unittest.TestCase):
 
 
     # Passed
-    def test_a_get_shard_ids(self):
-        '''Do all the instances return the same shard IDs?'''
+    # def test_a_get_shard_ids(self):
+    #     '''Do all the instances return the same shard IDs?'''
 
-        print('>>> Get shard-ids from Alice')
-        response = requests.get('http://{}:{}/shard/ids'.format(hostname, alice.published_port))
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('shard-ids', response.json())
-        shard_ids = response.json()['shard-ids']
+    #     print('>>> Get shard-ids from Alice')
+    #     response = requests.get('http://{}:{}/shard/ids'.format(hostname, alice.published_port))
+    #     self.assertEqual(response.status_code, 200)
+    #     self.assertIn('shard-ids', response.json())
+    #     shard_ids = response.json()['shard-ids']
 
-        print('=== Check that everybody reports those shard IDs')
-        for instance in all_instances:
-            with self.subTest(msg='at instance {}'.format(instance)):
-                response = requests.get('http://{}:{}/shard/ids'.format(hostname, instance.published_port))
-                self.assertEqual(response.status_code, 200)
-                self.assertIn('shard-ids', response.json())
-                self.assertEqual(set(response.json()['shard-ids']), set(shard_ids))
+    #     print('=== Check that everybody reports those shard IDs')
+    #     for instance in all_instances:
+    #         with self.subTest(msg='at instance {}'.format(instance)):
+    #             response = requests.get('http://{}:{}/shard/ids'.format(hostname, instance.published_port))
+    #             self.assertEqual(response.status_code, 200)
+    #             self.assertIn('shard-ids', response.json())
+    #             self.assertEqual(set(response.json()['shard-ids']), set(shard_ids))
 
-        # store the shard ids for the rest of the test suite
-        self.shard_ids.extend(shard_ids)
-
-
-    def test_b_shard_id_members(self):
-        '''Do all the instances agree about the members of each shard?'''
-
-        for shard_id in self.shard_ids:
-            with self.subTest(msg='for shard {}'.format(shard_id)):
-                print('>>> Get shard {} members from Alice'.format(shard_id))
-                response = requests.get('http://{}:{}/shard/members/{}'.format(hostname, alice.published_port, shard_id))
-                self.assertEqual(response.status_code, 200)
-                self.assertIn('shard-members', response.json())
-                shard_members = response.json()['shard-members']
-                self.assertGreater(len(shard_members), 1)
-
-            print('=== Check that everybody reports those shard {} members'.format(shard_id))
-            for instance in all_instances: 
-                with self.subTest(msg='for shard {}; at instance {}'.format(shard_id, instance)):
-                    response = requests.get('http://{}:{}/shard/members/{}'.format(hostname, instance.published_port, shard_id))
-                    self.assertEqual(response.status_code, 200)
-                    self.assertIn('shard-members', response.json())
-                    instance_reported = response.json()['shard-members']
-                    self.assertEqual(set(instance_reported), set(shard_members))
-
-            # store the shard member socket addresses for the rest of the test suite
-            self.shard_members[shard_id] = shard_members
-
-        self.assertEqual(len(all_instances), sum(len(members) for shard_id, members in self.shard_members.items()))
+    #     # store the shard ids for the rest of the test suite
+    #     self.shard_ids.extend(shard_ids)
 
 
-    def test_c_node_shard_id(self):
-        '''Does each instance's shard-id exist in the saved shard_ids and shard_members?'''
+    # def test_b_shard_id_members(self):
+    #     '''Do all the instances agree about the members of each shard?'''
 
-        for instance in all_instances:
-            with self.subTest(msg='at instance {}'.format(instance)):
-                print('>>> Get the node-shard-id from {}'.format(instance))
-                response = requests.get('http://{}:{}/shard/node-shard-id'.format(hostname, instance.published_port))
-                self.assertEqual(response.status_code, 200)
-                self.assertIn('node-shard-id', response.json())
-                instance_shard_id = response.json()['node-shard-id']
+    #     for shard_id in self.shard_ids:
+    #         with self.subTest(msg='for shard {}'.format(shard_id)):
+    #             print('>>> Get shard {} members from Alice'.format(shard_id))
+    #             response = requests.get('http://{}:{}/shard/members/{}'.format(hostname, alice.published_port, shard_id))
+    #             self.assertEqual(response.status_code, 200)
+    #             self.assertIn('shard-members', response.json())
+    #             shard_members = response.json()['shard-members']
+    #             self.assertGreater(len(shard_members), 1)
 
-                print('=== Check that the {}\'s id {} fits with previously collected data'.format(instance, instance_shard_id))
-                self.assertIn(instance_shard_id, self.shard_ids)
-                self.assertIn(instance_shard_id, self.shard_members)
-                self.assertIn(instance.socket_address, self.shard_members[instance_shard_id])
+    #         print('=== Check that everybody reports those shard {} members'.format(shard_id))
+    #         for instance in all_instances: 
+    #             with self.subTest(msg='for shard {}; at instance {}'.format(shard_id, instance)):
+    #                 response = requests.get('http://{}:{}/shard/members/{}'.format(hostname, instance.published_port, shard_id))
+    #                 self.assertEqual(response.status_code, 200)
+    #                 self.assertIn('shard-members', response.json())
+    #                 instance_reported = response.json()['shard-members']
+    #                 self.assertEqual(set(instance_reported), set(shard_members))
+
+    #         # store the shard member socket addresses for the rest of the test suite
+    #         self.shard_members[shard_id] = shard_members
+
+    #     self.assertEqual(len(all_instances), sum(len(members) for shard_id, members in self.shard_members.items()))
 
 
-    # def test_d_put_key_value_operation(self):
-    #     '''Do the replicas keep up when broadcasting with many causally-dependent requests issued quickly?'''
+    # def test_c_node_shard_id(self):
+    #     '''Does each instance's shard-id exist in the saved shard_ids and shard_members?'''
 
-    #     print('>>> Put {} key:value pairs into the store.'.format(self.key_count))
-    #     for n in range(self.key_count):
+    #     for instance in all_instances:
+    #         with self.subTest(msg='at instance {}'.format(instance)):
+    #             print('>>> Get the node-shard-id from {}'.format(instance))
+    #             response = requests.get('http://{}:{}/shard/node-shard-id'.format(hostname, instance.published_port))
+    #             self.assertEqual(response.status_code, 200)
+    #             self.assertIn('node-shard-id', response.json())
+    #             instance_shard_id = response.json()['node-shard-id']
 
-    #         key = 'key{}'.format(n)
-    #         value = 'value{}'.format(n)
-    #         instance = all_instances[n % len(all_instances)]
-    #         print('>>> Put {key}:{value} at instance {instance} (with retries)'.format(key=key, value=value, instance=instance))
+    #             print('=== Check that the {}\'s id {} fits with previously collected data'.format(instance, instance_shard_id))
+    #             self.assertIn(instance_shard_id, self.shard_ids)
+    #             self.assertIn(instance_shard_id, self.shard_members)
+    #             self.assertIn(instance.socket_address, self.shard_members[instance_shard_id])
 
-    #         retries = 7
-    #         backoffSec = lambda attempt: 0.01*2**attempt
-    #         # sum([(0.01*2**n) for n in range(7)]) == 1.27
-    #         #
-    #         # If the replicas haven't successfully broadcast the previous
-    #         # request after 1.27sec then there's a bug, and the test fails with
-    #         # "too many attempts".
 
-    #         for attempt in range(retries):
-    #             response = requests.put('http://{}:{}/kvs/{}'.format(hostname, instance.published_port, key),
-    #                 json={'value':value, 'causal-metadata':self.causal_metadata['metadata']})
-    #             print('Try {attempt}/{retries} PUT {key}:{value} -> {instance} -> {code} @{m}'.format(key=key, value=value, instance=instance, m=self.causal_metadata['metadata'], attempt=attempt + 1, retries=retries, code=response.status_code))
-    #             if response.status_code == 503:
-    #                 sleep(backoffSec(attempt))
-    #                 continue # retry
-    #             else:
-    #                 self.assertEqual(response.status_code, 201)
-    #                 self.causal_metadata['metadata'] = response.json()['causal-metadata']
-    #                 break # next request
-    #         else:
-    #             self.fail("too many attempts")
+    def test_d_put_key_value_operation(self):
+        '''Do the replicas keep up when broadcasting with many causally-dependent requests issued quickly?'''
 
-    #     print('... Wait for replication')
-    #     sleep(5)
+        print('>>> Put {} key:value pairs into the store.'.format(self.key_count))
+        for n in range(self.key_count):
+
+            key = 'key{}'.format(n)
+            value = 'value{}'.format(n)
+            instance = all_instances[n % len(all_instances)]
+            print('>>> Put {key}:{value} at instance {instance} (with retries)'.format(key=key, value=value, instance=instance))
+
+            retries = 7
+            backoffSec = lambda attempt: 0.01*2**attempt
+            # sum([(0.01*2**n) for n in range(7)]) == 1.27
+            #
+            # If the replicas haven't successfully broadcast the previous
+            # request after 1.27sec then there's a bug, and the test fails with
+            # "too many attempts".
+
+            for attempt in range(retries):
+                response = requests.put('http://{}:{}/kvs/{}'.format(hostname, instance.published_port, key),
+                    json={'value':value, 'causal-metadata':self.causal_metadata['metadata']})
+                print('Try {attempt}/{retries} PUT {key}:{value} -> {instance} -> {code} @{m}'.format(key=key, value=value, instance=instance, m=self.causal_metadata['metadata'], attempt=attempt + 1, retries=retries, code=response.status_code))
+                if response.status_code == 503:
+                    sleep(backoffSec(attempt))
+                    continue # retry
+                else:
+                    self.assertEqual(response.status_code, 201)
+                    self.causal_metadata['metadata'] = response.json()['causal-metadata']
+                    break # next request
+            else:
+                self.fail("too many attempts")
+
+        print('... Wait for replication')
+        sleep(5)
 
 
     # def test_e_get_key_value_operation(self):

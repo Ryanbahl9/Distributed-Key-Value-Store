@@ -68,26 +68,13 @@ func parseShardIdFromURL(c *gin.Context) (int, error) {
 }
 
 func parseEnvironmentVariables() (string, []string, int, bool) {
-	var addExists bool
-	var viewExists bool
+	// var addExists bool
+	// var viewExists bool
 	var shardCountExists bool
 
-	localAddress, addExists = os.LookupEnv("SOCKET_ADDRESS")
-	initialViewStr, viewExists := os.LookupEnv("VIEW")
+	localAddress, _ = os.LookupEnv("SOCKET_ADDRESS")
+	initialViewStr, _ := os.LookupEnv("VIEW")
 	initialShardCountStr, shardCountExists := os.LookupEnv("SHARD_COUNT")
-
-	// --- For Testing ---
-	if !viewExists {
-		initialViewStr = "10.11.0.2:8090,10.11.0.3:8090,10.11.0.4:8090,10.11.0.5:8090,10.11.0.6:8090,10.11.0.7:8090"
-	}
-	if !addExists {
-		localAddress = "10.11.0.2:8090"
-	}
-	if !shardCountExists {
-		initialShardCountStr = "2"
-		shardCountExists = true
-	}
-	// --- End For Testing ---
 
 	initialView := strings.Split(initialViewStr, ",")
 	initialShardCount, _ := strconv.Atoi(initialShardCountStr)
