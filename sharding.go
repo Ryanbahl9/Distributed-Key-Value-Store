@@ -14,7 +14,7 @@ const NumVirtShardsPerShard = 10
 var ErrNotEnoughNodes = errors.New("not enough nodes to provide fault tolerance with requested shard count")
 
 type Ring struct {
-	*sync.Mutex
+	sync.Mutex
 	VirtShards VirtShards `json:"virt-shards"`
 	Shards     Shards     `json:"shards"`
 }
@@ -32,7 +32,7 @@ type VirtShard struct {
 
 type VirtShards []VirtShard
 
-func NewRing(numShards int, nodes map[string]struct{}) Ring {
+func NewRing(numShards int, nodes map[string]struct{}) *Ring {
 	newRing := Ring{
 		VirtShards: make(VirtShards, numShards*NumVirtShardsPerShard),
 		Shards:     make(Shards, numShards),
@@ -74,11 +74,11 @@ func NewRing(numShards int, nodes map[string]struct{}) Ring {
 	}
 
 	// return the new ring
-	return newRing
+	return &newRing
 }
 
 // Given a piece of data, this function returns the id of the shard it should go to
-func (r Ring) GetShardId(key string) int {
+func (r *Ring) GetShardId(key string) int {
 	i := r.search(key)
 	if i >= len(r.VirtShards) {
 		i = 0
@@ -88,7 +88,7 @@ func (r Ring) GetShardId(key string) int {
 }
 
 // Helper function for GetShard
-func (r Ring) search(id string) int {
+func (r *Ring) search(id string) int {
 	searchfn := func(i int) bool {
 		return r.VirtShards[i].HashId >= crc32.ChecksumIEEE([]byte(id))
 	}
@@ -97,7 +97,7 @@ func (r Ring) search(id string) int {
 }
 
 // Finds the id of the shard a node belongs to, If node not found return -1
-func (r Ring) GetShardIdFromNode(node string) int {
+func (r *Ring) GetShardIdFromNode(node string) int {
 	for i := 0; i < len(r.Shards); i++ {
 		_, exists := r.Shards[i].Replicas[node]
 		if exists {
@@ -108,7 +108,7 @@ func (r Ring) GetShardIdFromNode(node string) int {
 }
 
 // Returns a new ring based on the given paramiters
-func (r Ring) Reshard(numShards int, nodes map[string]struct{}) (Ring, error) {
+func (r *Ring) Reshard(numShards int, nodes map[string]struct{}) (*Ring, error) {
 	if numShards == len(r.Shards) {
 		return r, nil
 	}
@@ -121,13 +121,13 @@ func (r Ring) Reshard(numShards int, nodes map[string]struct{}) (Ring, error) {
 	return newRing, nil
 }
 
-func (r Ring) AddNodeToShard(shardId int, node string) {
+func (r *Ring) AddNodeToShard(shardId int, node string) {
 	r.Lock()
 	defer r.Unlock()
 	r.Shards[shardId].Replicas[node] = struct{}{}
 }
 
-func (r Ring) RemoveNode(node string) {
+func (r *Ring) RemoveNode(node string) {
 	r.Lock()
 	defer r.Unlock()
 	for _, shard := range r.Shards {

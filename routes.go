@@ -399,14 +399,14 @@ func repAddNodeToShard(c *gin.Context) {
 }
 
 func repReshard(c *gin.Context) {
-	oldRing := &ring
+	oldRing := ring
 	oldRing.Lock()
 	defer oldRing.Unlock()
 
 	var newRing Ring
 	reqBody, _ := io.ReadAll(c.Request.Body)
 	json.Unmarshal(reqBody, &newRing)
-	ring = newRing
+	ring = &newRing
 
 	go shuffleKvsData()
 	c.JSON(http.StatusOK, gin.H{"result": "resharded"})

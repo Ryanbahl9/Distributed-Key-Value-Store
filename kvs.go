@@ -7,7 +7,7 @@ import (
 
 // Structures
 type KeyValStoreDatabase struct {
-	*sync.Mutex
+	sync.Mutex
 	Data         map[string]interface{} `json:"data"`
 	Metadata     map[string]int         `json:"metadata"`
 	LocalAddress string                 `json:"localAddress"`
@@ -18,8 +18,8 @@ var ErrKeyNotFound = errors.New("key not found")
 var ErrInvalidMetadata = errors.New("cannot accept metadata")
 
 // Constructor
-func NewKeyValStoreDatabase(localAdd string) KeyValStoreDatabase {
-	return KeyValStoreDatabase{
+func NewKeyValStoreDatabase(localAdd string) *KeyValStoreDatabase {
+	return &KeyValStoreDatabase{
 		Data:         make(map[string]interface{}),
 		Metadata:     make(map[string]int),
 		LocalAddress: localAdd,
@@ -27,7 +27,7 @@ func NewKeyValStoreDatabase(localAdd string) KeyValStoreDatabase {
 }
 
 // Gets a key from the kvs
-func (kvs KeyValStoreDatabase) GetData(key string, metadata map[string]int) (value interface{}, currentMetadata map[string]int, err error) {
+func (kvs *KeyValStoreDatabase) GetData(key string, metadata map[string]int) (value interface{}, currentMetadata map[string]int, err error) {
 	// Lock Data
 	kvs.Lock()
 	defer kvs.Unlock()
@@ -54,7 +54,7 @@ func (kvs KeyValStoreDatabase) GetData(key string, metadata map[string]int) (val
 }
 
 // Adds Data to the kvs
-func (kvs KeyValStoreDatabase) PutData(key string, value interface{}, metadata map[string]int, sender string) (wasCreated bool, currentMetadata map[string]int, err error) {
+func (kvs *KeyValStoreDatabase) PutData(key string, value interface{}, metadata map[string]int, sender string) (wasCreated bool, currentMetadata map[string]int, err error) {
 	// Lock Database
 	kvs.Lock()
 	defer kvs.Unlock()
@@ -81,12 +81,12 @@ func (kvs KeyValStoreDatabase) PutData(key string, value interface{}, metadata m
 	return !wasCreated, currentMetadata, nil
 }
 
-func (kvs KeyValStoreDatabase) PutDataNoChecks(key string, value interface{}) {
+func (kvs *KeyValStoreDatabase) PutDataNoChecks(key string, value interface{}) {
 	kvs.Data[key] = value
 }
 
 // Deletes Data from kvs
-func (kvs KeyValStoreDatabase) DeleteData(key string, metadata map[string]int, sender string) (currentMetadata map[string]int, err error) {
+func (kvs *KeyValStoreDatabase) DeleteData(key string, metadata map[string]int, sender string) (currentMetadata map[string]int, err error) {
 	// Lock Data
 	kvs.Lock()
 	defer kvs.Unlock()
@@ -120,7 +120,7 @@ func (kvs KeyValStoreDatabase) DeleteData(key string, metadata map[string]int, s
 }
 
 // TODO: refactor this to make non-existant values = 0 when comparing
-func (kvs KeyValStoreDatabase) IsMetadataValid(incomingMetadata map[string]int, sender string) bool {
+func (kvs *KeyValStoreDatabase) IsMetadataValid(incomingMetadata map[string]int, sender string) bool {
 	if sender == kvs.LocalAddress {
 		for replica, time := range incomingMetadata {
 			if time > kvs.Metadata[replica] {
@@ -141,7 +141,7 @@ func (kvs KeyValStoreDatabase) IsMetadataValid(incomingMetadata map[string]int, 
 	}
 }
 
-func (kvs KeyValStoreDatabase) incrementMetadata(sender string) {
+func (kvs *KeyValStoreDatabase) incrementMetadata(sender string) {
 	if sender == kvs.LocalAddress {
 		kvs.Metadata[kvs.LocalAddress] = kvs.Metadata[kvs.LocalAddress] + 1
 	} else {
@@ -149,7 +149,7 @@ func (kvs KeyValStoreDatabase) incrementMetadata(sender string) {
 	}
 }
 
-func (kvs KeyValStoreDatabase) copyMetadata() map[string]int {
+func (kvs *KeyValStoreDatabase) copyMetadata() map[string]int {
 	copy := make(map[string]int)
 
 	for key, val := range kvs.Metadata {

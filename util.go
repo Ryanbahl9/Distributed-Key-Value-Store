@@ -59,7 +59,7 @@ func getShardData(shardId int) {
 
 	resBody, _ := io.ReadAll(res.Body)
 	json.Unmarshal(resBody, &newKvsDb)
-	kvsDb = newKvsDb
+	kvsDb = &newKvsDb
 }
 
 // This function runs through every key in the database

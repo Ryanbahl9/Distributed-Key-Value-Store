@@ -134,7 +134,7 @@ func broadcastAddNodeToShard(nodeAddress string, shardId int) {
 }
 
 // Wrapper for sendBroadcastMsg for resharding
-func broadcastReshard(r Ring) {
+func broadcastReshard(r *Ring) {
 	// build responce to broadcast
 	dataMap := make(map[string]interface{})
 	dataMap["ring"] = r
@@ -186,7 +186,7 @@ func broadcastDeleteView(node string) {
 }
 
 // asks the other nodes in the view for ring data
-func getRingData() Ring {
+func getRingData() *Ring {
 	res, err := sendMsgToGroup(
 		removeLocalAddressFromMap(view.Nodes),
 		"/rep/shard",
@@ -201,10 +201,8 @@ func getRingData() Ring {
 	var newRing Ring
 	reqBody, _ := io.ReadAll(res.Body)
 	json.Unmarshal(reqBody, &newRing)
-	ring = newRing
 
-	return newRing
-
+	return &newRing
 }
 
 func sendKeyValNoChecks(key string, val interface{}, node string) {

@@ -8,9 +8,9 @@ import (
 
 const DEFAULT_TIMEOUT = time.Second
 
-var kvsDb KeyValStoreDatabase
-var view View
-var ring Ring
+var kvsDb *KeyValStoreDatabase
+var view *View
+var ring *Ring
 var localShardId int
 var localAddress string
 

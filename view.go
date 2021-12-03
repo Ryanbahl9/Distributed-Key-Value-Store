@@ -8,22 +8,22 @@ import (
 var ErrNodeNotFound = errors.New("node not found")
 
 type View struct {
-	*sync.Mutex
+	sync.Mutex
 	Nodes map[string]struct{} `json:"nodes"`
 }
 
-func NewView() View {
-	return View{
+func NewView() *View {
+	return &View{
 		Nodes: make(map[string]struct{}),
 	}
 }
 
-func (v View) Contains(node string) bool {
+func (v *View) Contains(node string) bool {
 	_, exists := v.Nodes[node]
 	return exists
 }
 
-func (v View) GetViewAsSlice() []string {
+func (v *View) GetViewAsSlice() []string {
 	v.Lock()
 	defer v.Unlock()
 
@@ -37,7 +37,7 @@ func (v View) GetViewAsSlice() []string {
 	return viewArr
 }
 
-func (v View) PutView(node string) bool {
+func (v *View) PutView(node string) bool {
 	v.Lock()
 	defer v.Unlock()
 
@@ -50,7 +50,7 @@ func (v View) PutView(node string) bool {
 	return exists
 }
 
-func (v View) DeleteView(node string) bool {
+func (v *View) DeleteView(node string) bool {
 	v.Lock()
 	defer v.Unlock()
 
