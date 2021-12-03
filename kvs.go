@@ -95,6 +95,8 @@ func (kvs *KeyValStoreDatabase) putJustMetadata(metadata map[string]int, sender 
 }
 
 func (kvs *KeyValStoreDatabase) PutDataNoChecks(key string, value interface{}) {
+	kvs.Lock()
+	defer kvs.Unlock()
 	kvs.Data[key] = value
 }
 

@@ -438,10 +438,14 @@ func repReshard(c *gin.Context) {
 	oldRing.Lock()
 	defer oldRing.Unlock()
 
-	var newRing Ring
+	type TempSt struct {
+		Ring Ring `json:"ring"`
+	}
+	var newRing TempSt
 	reqBody, _ := io.ReadAll(c.Request.Body)
 	json.Unmarshal(reqBody, &newRing)
-	ring = &newRing
+
+	ring = &newRing.Ring
 
 	localShardId = ring.GetShardIdFromNode(localAddress)
 

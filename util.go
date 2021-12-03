@@ -95,11 +95,21 @@ func shuffleKvsData() {
 	kvsDb.Lock()
 	defer kvsDb.Unlock()
 
+	toDelete := make(map[string]interface{})
+
 	for key, val := range kvsDb.Data {
+		// if key no longer belongs, add to the delete list
 		keyShardId := ring.GetShardId(key)
 		if keyShardId != localShardId {
-			broadcastKeyValNoChecks(key, val, ring.Shards[keyShardId].Replicas)
+			toDelete[key] = val
 		}
+		// Broadcast to new shard
+		go broadcastKeyValNoChecks(key, val, removeLocalAddressFromMap(ring.Shards[keyShardId].Replicas))
+	}
+
+	// Delete all shards the don't belong to new shard
+	for key := range toDelete {
+		delete(kvsDb.Data, key)
 	}
 }
 

@@ -24,7 +24,7 @@ func main() {
 	testing := false
 	if testing {
 		DEFAULT_TIMEOUT = time.Second * 100000000
-		initialView = []string{"localhost:8090", "localhost:8092", "localhost:8093"}
+		initialView = []string{"localhost:8090", "localhost:8091", "localhost:8092", "localhost:8093"}
 		localAddress = "localhost:8090"
 		initialShardCount = 2
 		shardCountExists = true
