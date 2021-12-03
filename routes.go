@@ -409,6 +409,8 @@ func repReshard(c *gin.Context) {
 	json.Unmarshal(reqBody, &newRing)
 	ring = &newRing
 
+	localShardId = ring.GetShardIdFromNode(localAddress)
+
 	go shuffleKvsData()
 	c.JSON(http.StatusOK, gin.H{"result": "resharded"})
 }
