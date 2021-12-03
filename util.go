@@ -18,8 +18,6 @@ func initPrimaryNode(initailView []string, shardCount int) {
 	}
 	ring = NewRing(shardCount, view.Nodes)
 	localShardId = -1
-
-	broadcastPutView(localAddress)
 }
 
 func initTertiaryNode(initailView []string) {

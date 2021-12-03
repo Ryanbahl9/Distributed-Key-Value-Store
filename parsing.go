@@ -78,13 +78,14 @@ func parseEnvironmentVariables() (string, []string, int, bool) {
 
 	// --- For Testing ---
 	if !viewExists {
-		initialViewStr = "localhost:8090,localhost:8091,localhost:8092"
+		initialViewStr = "10.11.0.2:8090,10.11.0.3:8090,10.11.0.4:8090,10.11.0.5:8090,10.11.0.6:8090,10.11.0.7:8090"
 	}
 	if !addExists {
-		localAddress = "localhost:8090"
+		localAddress = "10.11.0.2:8090"
 	}
 	if !shardCountExists {
-		initialShardCountStr = "3"
+		initialShardCountStr = "2"
+		shardCountExists = true
 	}
 	// --- End For Testing ---
 

@@ -70,7 +70,7 @@ func NewRing(numShards int, nodes map[string]struct{}) *Ring {
 	i := 0
 	for _, node := range sortedNodes {
 		newRing.AddNodeToShard(i, node)
-		i = numShards % (i + 1)
+		i = ((i + 1) % numShards)
 	}
 
 	// return the new ring

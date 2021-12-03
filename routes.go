@@ -232,6 +232,7 @@ func getShardMembers(c *gin.Context) {
 	i := 0
 	for key := range ring.Shards[id].Replicas {
 		members[i] = key
+		i++
 	}
 
 	// respond with members
