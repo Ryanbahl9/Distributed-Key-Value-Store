@@ -21,9 +21,10 @@ var ErrInvalidMetadata = errors.New("cannot accept metadata")
 func (kvs KeyValStoreDatabase) GetData(key string, metadata map[string]int) (value interface{}, currentMetadata map[string]int, err error) {
 	// Lock Data
 	kvs.Lock()
+	defer kvs.Unlock()
 
 	// Check metadata
-	metadataValid := IsMetadataValid(kvs.Metadata, metadata, "")
+	metadataValid := kvs.IsMetadataValid(metadata, kvs.LocalAddress)
 	if !metadataValid {
 		kvs.Unlock()
 		return nil, nil, ErrInvalidMetadata
@@ -39,9 +40,6 @@ func (kvs KeyValStoreDatabase) GetData(key string, metadata map[string]int) (val
 	// Make copy of metadata before unlocking
 	currentMetadata = kvs.copyMetadata()
 
-	// Unlock data
-	kvs.Unlock()
-
 	// return value and metadata
 	return value, currentMetadata, nil
 }
@@ -50,7 +48,9 @@ func (kvs KeyValStoreDatabase) GetData(key string, metadata map[string]int) (val
 func (kvs KeyValStoreDatabase) PutData(key string, value interface{}, metadata map[string]int, sender string) (wasCreated bool, currentMetadata map[string]int, err error) {
 	// Lock Database
 	kvs.Lock()
-	metadataValid := IsMetadataValid(kvs.Metadata, metadata, sender)
+	defer kvs.Unlock()
+
+	metadataValid := kvs.IsMetadataValid(metadata, sender)
 	if !metadataValid {
 		kvs.Unlock()
 		return false, nil, ErrInvalidMetadata
@@ -68,9 +68,6 @@ func (kvs KeyValStoreDatabase) PutData(key string, value interface{}, metadata m
 	// Make copy of metadata before unlocking
 	currentMetadata = kvs.copyMetadata()
 
-	// Unlock data
-	kvs.Unlock()
-
 	// return success and wasCreated
 	return !wasCreated, currentMetadata, nil
 }
@@ -79,9 +76,10 @@ func (kvs KeyValStoreDatabase) PutData(key string, value interface{}, metadata m
 func (kvs KeyValStoreDatabase) DeleteData(key string, metadata map[string]int, sender string) (currentMetadata map[string]int, err error) {
 	// Lock Data
 	kvs.Lock()
+	defer kvs.Unlock()
 
 	// Check metadata
-	metadataValid := IsMetadataValid(kvs.Metadata, metadata, sender)
+	metadataValid := kvs.IsMetadataValid(metadata, sender)
 	if !metadataValid {
 		kvs.Unlock()
 		return nil, ErrInvalidMetadata
@@ -103,28 +101,26 @@ func (kvs KeyValStoreDatabase) DeleteData(key string, metadata map[string]int, s
 	// Make copy of metadata before unlocking
 	currentMetadata = kvs.copyMetadata()
 
-	// Unlock data
-	kvs.Unlock()
-
 	// return metadata
 	return currentMetadata, nil
 
 }
 
-func IsMetadataValid(localMetadata map[string]int, incomingMetadata map[string]int, sender string) bool {
-	if sender == "" {
+// TODO: refactor this to make non-existant values = 0 when comparing
+func (kvs KeyValStoreDatabase) IsMetadataValid(incomingMetadata map[string]int, sender string) bool {
+	if sender == kvs.LocalAddress {
 		for replica, time := range incomingMetadata {
-			if time > localMetadata[replica] {
+			if time > kvs.Metadata[replica] {
 				return false
 			}
 		}
 		return true
 	} else {
-		if incomingMetadata[sender] != (localMetadata[sender] + 1) {
+		if incomingMetadata[sender] != (kvs.Metadata[sender] + 1) {
 			return false
 		}
 		for replica, time := range incomingMetadata {
-			if replica != sender && time > localMetadata[replica] {
+			if replica != sender && time > kvs.Metadata[replica] {
 				return false
 			}
 		}
@@ -133,7 +129,7 @@ func IsMetadataValid(localMetadata map[string]int, incomingMetadata map[string]i
 }
 
 func (kvs KeyValStoreDatabase) incrementMetadata(sender string) {
-	if sender == "" {
+	if sender == kvs.LocalAddress {
 		kvs.Metadata[kvs.LocalAddress] = kvs.Metadata[kvs.LocalAddress] + 1
 	} else {
 		kvs.Metadata[sender] = kvs.Metadata[sender] + 1

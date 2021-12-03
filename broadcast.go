@@ -2,21 +2,13 @@ package main
 
 import (
 	"bytes"
+	ring_pkg "cse138/assignment_4/sharding"
+	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
-
-// func broadcastKVSPut(key string, value interface{}, metadata map[string]int, sender string, view *View) {
-// dataMap := make(map[string]interface{})
-// dataMap["key"] = key
-// dataMap["value"] = value
-// dataMap["causal-metadata"] = metadata
-// dataMap["sender"] = localAddress
-
-// go sendBroadcastMsg("PUT", dataMap, "/rep/kvs")
-// }
 
 // func broadcastKVSDelete(key string, metadata map[string]int, sender string, view *View) {
 // 	dataMap := make(map[string]interface{})
@@ -29,7 +21,7 @@ import (
 
 func sendServiceUnavailable(c *gin.Context) {
 	println("sending service unavailable")
-	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Causal dependencies not satisfied; try again later", "causal-metadata": localVC})
+	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Causal dependencies not satisfied; try again later"})
 }
 
 // sends a single message to the node specified and returns the responce
@@ -72,7 +64,7 @@ func sendSingleMsg(node string, endpoint string, method string, contentType stri
 // next node on the list
 func sendMsgToGroup(nodes map[string]struct{}, endpoint string, method string, contentType string, data []byte) (*http.Response, error) {
 	// Send msg to each node in list until responce
-	for node, _ := range nodes {
+	for node := range nodes {
 		res, err := sendSingleMsg(node, endpoint, method, contentType, data)
 		if err != nil {
 			return res, nil
@@ -89,4 +81,80 @@ func sendBroadcastMsg(nodes map[string]struct{}, endpoint string, method string,
 	for node := range nodes {
 		go sendSingleMsg(node, endpoint, method, contentType, data)
 	}
+}
+
+// Wrapper for sendBroadcastMsg for put kvs
+func broadcastKvsPut(key string, value interface{}, metadata map[string]int, sender string) {
+	dataMap := make(map[string]interface{})
+	dataMap["key"] = key
+	dataMap["value"] = value
+	dataMap["causal-metadata"] = metadata
+	dataMap["sender"] = localAddress
+
+	// turn body data into string JSON
+	jsonData, _ := json.Marshal(dataMap)
+
+	// send broadcast messages on new thread
+	sendBroadcastMsg(
+		removeLocalAddressFromMap(view.Nodes),
+		"/rep/kvs",
+		http.MethodPut,
+		"application/json",
+		jsonData)
+}
+
+// Wrapper for sendBroadcastMsg for delete kvs
+func broadcastKvsDelete(key string, metadata map[string]int, sender string) {
+	dataMap := make(map[string]interface{})
+	dataMap["key"] = key
+	dataMap["causal-metadata"] = metadata
+	dataMap["sender"] = localAddress
+
+	// turn body data into string JSON
+	jsonData, _ := json.Marshal(dataMap)
+
+	// send broadcast messages on new thread
+	sendBroadcastMsg(
+		removeLocalAddressFromMap(view.Nodes),
+		"/rep/kvs",
+		http.MethodDelete,
+		"application/json",
+		jsonData)
+}
+
+// Wrapper for sendBroadcastMsg for adding node to shard
+func broadcastAddNodeToShard(nodeAddress string, shardId int) {
+	// build responce to broadcast
+	dataMap := make(map[string]interface{})
+	dataMap["socket-address"] = nodeAddress
+	dataMap["shard-id"] = shardId
+
+	// turn body data into string JSON
+	jsonData, _ := json.Marshal(dataMap)
+
+	// send broadcast messages on new thread
+	sendBroadcastMsg(
+		removeLocalAddressFromMap(view.Nodes),
+		"/rep/shard/add-member",
+		http.MethodPut,
+		"application/json",
+		jsonData)
+}
+
+// Wrapper for sendBroadcastMsg for resharding
+func broadcastReshard(r ring_pkg.Ring) {
+	// build responce to broadcast
+	dataMap := make(map[string]interface{})
+	dataMap["ring"] = r
+
+	// turn body data into string JSON
+	jsonData, _ := json.Marshal(dataMap)
+
+	sendBroadcastMsg(
+		removeLocalAddressFromMap(view.Nodes),
+		"/rep/shard/reshard",
+		http.MethodPut,
+		"application/json",
+		jsonData)
+
 }
