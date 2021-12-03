@@ -4,6 +4,10 @@ import "sync"
 
 type View struct {
 	*sync.Mutex
-	Nodes        map[string]struct{} `json:"nodes"`
-	LocalAddress string              `json:"localAddress"`
+	Nodes map[string]struct{} `json:"nodes"`
+}
+
+func (v View) Contains(node string) bool {
+	_, exists := v.Nodes[node]
+	return exists
 }

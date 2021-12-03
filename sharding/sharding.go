@@ -59,11 +59,17 @@ func NewRing(numShards int, nodes map[string]struct{}) Ring {
 	// sort virt shards so we can use sort.Search() function later
 	sort.Sort(newRing.VirtShards)
 
+	// put the nodes into a slice to we can sort them
+	sortedNodes := make([]string, 0, len(nodes))
+	for k := range nodes {
+		sortedNodes = append(sortedNodes, k)
+	}
+	sort.Strings(sortedNodes)
+
 	// put the nodes into the shards as evenly as we can
 	i := 0
-	for key, val := range nodes {
-		newRing.Shards[i].Replicas[key] = val
-
+	for _, node := range sortedNodes {
+		newRing.AddNodeToShard(i, node)
 		i = numShards % (i + 1)
 	}
 
@@ -113,6 +119,12 @@ func (r Ring) Reshard(numShards int, nodes map[string]struct{}) (Ring, error) {
 	newRing := NewRing(numShards, nodes)
 
 	return newRing, nil
+}
+
+func (r Ring) AddNodeToShard(shardId int, node string) {
+	r.Lock()
+	defer r.Unlock()
+	r.Shards[shardId].Replicas[node] = struct{}{}
 }
 
 // These are hear so we can use the built in sort function on VirtShards structs
