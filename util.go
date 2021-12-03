@@ -38,6 +38,29 @@ func deleteNode(node string) {
 	broadcastDeleteView(node)
 }
 
+// asks the other nodes in the view for ring data
+func getRingData() *Ring {
+	res, err := sendMsgToGroup(
+		removeLocalAddressFromMap(view.Nodes),
+		"/rep/shard",
+		http.MethodGet,
+		"application/json",
+		make([]byte, 0),
+		true)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	type TempSt struct {
+		Ring Ring `json:"ring"`
+	}
+	var newRing TempSt
+	reqBody, _ := io.ReadAll(res.Body)
+	json.Unmarshal(reqBody, &newRing)
+
+	return &newRing.Ring
+}
+
 // Clones all the kvs data from the specified shard
 // to local kvs database
 func getShardData(shardId int) {
@@ -54,11 +77,15 @@ func getShardData(shardId int) {
 		log.Fatal(err)
 	}
 
-	var newKvsDb KeyValStoreDatabase
+	type TempKvs struct {
+		Kvs KeyValStoreDatabase `json:"data"`
+	}
+
+	var newKvsDb TempKvs
 
 	resBody, _ := io.ReadAll(res.Body)
 	json.Unmarshal(resBody, &newKvsDb)
-	kvsDb = &newKvsDb
+	kvsDb = &newKvsDb.Kvs
 }
 
 // This function runs through every key in the database

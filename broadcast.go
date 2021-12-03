@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -183,26 +181,6 @@ func broadcastDeleteView(node string) {
 		http.MethodDelete,
 		"application/json",
 		jsonData)
-}
-
-// asks the other nodes in the view for ring data
-func getRingData() *Ring {
-	res, err := sendMsgToGroup(
-		removeLocalAddressFromMap(view.Nodes),
-		"/rep/shard",
-		http.MethodGet,
-		"application/json",
-		make([]byte, 0),
-		true)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var newRing Ring
-	reqBody, _ := io.ReadAll(res.Body)
-	json.Unmarshal(reqBody, &newRing)
-
-	return &newRing
 }
 
 func sendKeyValNoChecks(key string, val interface{}, node string) {

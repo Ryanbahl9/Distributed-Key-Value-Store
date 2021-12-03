@@ -281,15 +281,16 @@ func addNodeToShard(c *gin.Context) {
 	/// ----Adding Node Local----
 	// add the node the the local shard
 	ring.AddNodeToShard(shardId, nodeAddress)
+
+	// if the nodeAddress is this node start cloning data
+	if nodeAddress == localAddress {
+		localShardId = shardId
+		go getShardData(shardId)
+	}
 	// Respond to client
 	c.JSON(http.StatusOK, gin.H{"result": "node added to shard"})
 
 	go broadcastAddNodeToShard(nodeAddress, shardId)
-
-	// if the nodeAddress is this node start cloning data
-	if nodeAddress == localAddress {
-		go getShardData(shardId)
-	}
 }
 
 func putReshard(c *gin.Context) {
@@ -300,7 +301,7 @@ func putReshard(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no shard count specified"})
 		return
 	}
-	shardCount := data["shard-count"].(int)
+	shardCount := int(data["shard-count"].(float64))
 
 	/// ----Resharding Local----
 	// reshard local ring and check for insufficient node count
@@ -419,13 +420,14 @@ func repAddNodeToShard(c *gin.Context) {
 	if err != nil {
 		c.JSON(123, gin.H{"error": err.Error()})
 	}
-	shardId, _ := data["shard-id"].(int)
+	shardId := int(data["shard-id"].(float64))
 	nodeAddress, _ := data["socket-address"].(string)
 
 	// add the node to the local ring
 	ring.AddNodeToShard(shardId, nodeAddress)
 
 	if nodeAddress == localAddress {
+		localShardId = shardId
 		go getShardData(shardId)
 	}
 	c.JSON(http.StatusOK, gin.H{"result": "added"})
