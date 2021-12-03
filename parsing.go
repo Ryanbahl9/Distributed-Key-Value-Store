@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -63,4 +65,31 @@ func parseShardIdFromURL(c *gin.Context) (int, error) {
 	}
 
 	return id, nil
+}
+
+func parseEnvironmentVariables() (string, []string, int, bool) {
+	var addExists bool
+	var viewExists bool
+	var shardCountExists bool
+
+	localAddress, addExists = os.LookupEnv("SOCKET_ADDRESS")
+	initialViewStr, viewExists := os.LookupEnv("VIEW")
+	initialShardCountStr, shardCountExists := os.LookupEnv("SHARD_COUNT")
+
+	// --- For Testing ---
+	if !viewExists {
+		initialViewStr = "localhost:8090,localhost:8091,localhost:8092"
+	}
+	if !addExists {
+		localAddress = "localhost:8090"
+	}
+	if !shardCountExists {
+		initialShardCountStr = "3"
+	}
+	// --- End For Testing ---
+
+	initialView := strings.Split(initialViewStr, ",")
+	initialShardCount, _ := strconv.Atoi(initialShardCountStr)
+
+	return localAddress, initialView, initialShardCount, shardCountExists
 }

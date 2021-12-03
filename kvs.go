@@ -1,4 +1,4 @@
-package kvs_pkg
+package main
 
 import (
 	"errors"
@@ -16,6 +16,15 @@ type KeyValStoreDatabase struct {
 // Errors
 var ErrKeyNotFound = errors.New("key not found")
 var ErrInvalidMetadata = errors.New("cannot accept metadata")
+
+// Constructor
+func NewKeyValStoreDatabase(localAdd string) KeyValStoreDatabase {
+	return KeyValStoreDatabase{
+		Data:         make(map[string]interface{}),
+		Metadata:     make(map[string]int),
+		LocalAddress: localAdd,
+	}
+}
 
 // Gets a key from the kvs
 func (kvs KeyValStoreDatabase) GetData(key string, metadata map[string]int) (value interface{}, currentMetadata map[string]int, err error) {
@@ -70,6 +79,10 @@ func (kvs KeyValStoreDatabase) PutData(key string, value interface{}, metadata m
 
 	// return success and wasCreated
 	return !wasCreated, currentMetadata, nil
+}
+
+func (kvs KeyValStoreDatabase) PutDataNoChecks(key string, value interface{}) {
+	kvs.Data[key] = value
 }
 
 // Deletes Data from kvs

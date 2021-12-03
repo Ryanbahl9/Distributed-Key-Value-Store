@@ -1,8 +1,6 @@
 package main
 
 import (
-	kvs_pkg "cse138/assignment_4/kvs"
-	ring_pkg "cse138/assignment_4/sharding"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -16,22 +14,13 @@ import (
 /// --- view routes ---
 // Returns an array of the current view
 func getView(c *gin.Context) {
-	// Build View array from the keys of the local vector clock
-	viewArr := make([]string, len(view.Nodes))
-	i := 0
-	for key := range view.Nodes {
-		viewArr[i] = key
-		i++
-	}
+	viewArr := view.GetViewAsSlice()
 	// send list back in JSON form
 	c.JSON(http.StatusOK, gin.H{"view": viewArr})
 }
 
 // Checks if the replica exists, and if not, adds it to the view
 func putView(c *gin.Context) {
-	view.Lock()
-	defer view.Unlock()
-
 	// get the json data from the body
 	data, err := parseKeysFromBody(c, "socket-address")
 	if err != nil {
@@ -40,15 +29,15 @@ func putView(c *gin.Context) {
 	}
 	nodeAddress := data["socket-address"].(string)
 
-	// check if node exists in view
-	if _, exists := view.Nodes[nodeAddress]; exists {
-		c.JSON(http.StatusOK, gin.H{"result": "already present"})
-		return
-	}
+	// add to view
+	existed := view.PutView(nodeAddress)
 
-	// Replica doesn't exist in view. Add it.
-	view.Nodes[nodeAddress] = struct{}{}
-	c.JSON(http.StatusCreated, gin.H{"result": "added"})
+	// respond to client
+	if existed {
+		c.JSON(http.StatusOK, gin.H{"result": "already present"})
+	} else {
+		c.JSON(http.StatusCreated, gin.H{"result": "added"})
+	}
 }
 
 // Checks if the replica exists, and if so, delete it from the view
@@ -64,16 +53,16 @@ func deleteView(c *gin.Context) {
 	}
 	nodeAddress := data["socket-address"].(string)
 
-	// check if node exists in view
-	if _, exists := view.Nodes[nodeAddress]; !exists {
+	// delete from view
+	existed := view.DeleteView(nodeAddress)
+	ring.RemoveNode(nodeAddress)
+
+	// respond to client
+	if existed {
+		c.JSON(http.StatusOK, gin.H{"result": "deleted"})
+	} else {
 		c.JSON(http.StatusNotFound, gin.H{"error": "View has no such replica"})
-		return
 	}
-
-	// Replica exists in the view, delete it from the view
-	delete(view.Nodes, nodeAddress)
-	c.JSON(http.StatusOK, gin.H{"result": "deleted"})
-
 }
 
 /// --- kvs routes
@@ -82,7 +71,13 @@ func deleteView(c *gin.Context) {
 // Retrieves the value for the specified key and returns it to the client
 func getKey(c *gin.Context) {
 	// get key from URL
-	key := c.Param(("id"))
+	key := c.Param(("key"))
+
+	shardId := ring.GetShardId(key)
+	if shardId != localShardId {
+		proxyToShard(c, "/kvs/"+key, shardId)
+		return
+	}
 
 	// get the json data from the body
 	data, err := parseKeysFromBody(c, "causal-metadata")
@@ -94,10 +89,10 @@ func getKey(c *gin.Context) {
 
 	// Make change in local kvs database and check for errors
 	val, currMetadata, err := kvsDb.GetData(key, metadata)
-	if err == kvs_pkg.ErrInvalidMetadata {
+	if err == ErrInvalidMetadata {
 		sendServiceUnavailable(c)
 		return
-	} else if err == kvs_pkg.ErrKeyNotFound {
+	} else if err == ErrKeyNotFound {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Key does not exist"})
 		return
 	} else if err != nil {
@@ -112,7 +107,13 @@ func getKey(c *gin.Context) {
 // Tries to add the kv pair to the kvs
 func putKey(c *gin.Context) {
 	// get key from URL
-	key := c.Param(("id"))
+	key := c.Param(("key"))
+
+	shardId := ring.GetShardId(key)
+	if shardId != localShardId {
+		proxyToShard(c, "/kvs/"+key, shardId)
+		return
+	}
 
 	// get the json data from the body
 	data, err := parseKeysFromBody(c, "value", "causal-metadata")
@@ -137,7 +138,7 @@ func putKey(c *gin.Context) {
 
 	// put key and check for errors
 	wasCreated, currMetadata, err := kvsDb.PutData(key, value, metadata, localAddress)
-	if err == kvs_pkg.ErrInvalidMetadata {
+	if err == ErrInvalidMetadata {
 		sendServiceUnavailable(c)
 		return
 	} else if err != nil {
@@ -158,7 +159,13 @@ func putKey(c *gin.Context) {
 
 func deleteKey(c *gin.Context) {
 	// get key from URL
-	key := c.Param(("id"))
+	key := c.Param(("key"))
+
+	shardId := ring.GetShardId(key)
+	if shardId != localShardId {
+		proxyToShard(c, "/kvs/"+key, shardId)
+		return
+	}
 
 	// get the json data from the body
 	data, err := parseKeysFromBody(c, "causal-metadata")
@@ -170,10 +177,10 @@ func deleteKey(c *gin.Context) {
 
 	// put key and check for errors
 	currMetadata, err := kvsDb.DeleteData(key, metadata, localAddress)
-	if err == kvs_pkg.ErrInvalidMetadata {
+	if err == ErrInvalidMetadata {
 		sendServiceUnavailable(c)
 		return
-	} else if err == kvs_pkg.ErrKeyNotFound {
+	} else if err == ErrKeyNotFound {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Key does not exist"})
 		return
 	} else if err != nil {
@@ -297,7 +304,7 @@ func putReshard(c *gin.Context) {
 	/// ----Resharding Local----
 	// reshard local ring and check for insufficient node count
 	ring, err = ring.Reshard(shardCount, view.Nodes)
-	if err == ring_pkg.ErrNotEnoughNodes {
+	if err == ErrNotEnoughNodes {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Not enough nodes to provide fault tolerance with requested shard count"})
 		return
 	}
@@ -305,6 +312,8 @@ func putReshard(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	localShardId = ring.GetShardIdFromNode(localAddress)
 
 	// Respond to client
 	c.JSON(http.StatusOK, gin.H{"result": "resharded"})
@@ -332,7 +341,7 @@ func repPutKey(c *gin.Context) {
 
 	// add data to kvs database
 	_, _, err = kvsDb.PutData(key, value, metadata, sender)
-	if err == kvs_pkg.ErrInvalidMetadata {
+	if err == ErrInvalidMetadata {
 		sendServiceUnavailable(c)
 		return
 	} else if err != nil {
@@ -356,10 +365,10 @@ func repDeleteKey(c *gin.Context) {
 
 	// add data to kvs database
 	_, err = kvsDb.DeleteData(key, metadata, sender)
-	if err == kvs_pkg.ErrInvalidMetadata {
+	if err == ErrInvalidMetadata {
 		sendServiceUnavailable(c)
 		return
-	} else if err == kvs_pkg.ErrKeyNotFound {
+	} else if err == ErrKeyNotFound {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Key does not exist"})
 		return
 	} else if err != nil {
@@ -394,7 +403,7 @@ func repReshard(c *gin.Context) {
 	oldRing.Lock()
 	defer oldRing.Unlock()
 
-	var newRing ring_pkg.Ring
+	var newRing Ring
 	reqBody, _ := io.ReadAll(c.Request.Body)
 	json.Unmarshal(reqBody, &newRing)
 	ring = newRing
@@ -403,6 +412,34 @@ func repReshard(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"result": "resharded"})
 }
 
-func repGetCloneShardData(c *gin.Context) {
+func repPutKeyNoChecks(c *gin.Context) {
+	// get data from request body
+	data, err := parseKeysFromBody(c, "key", "value")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+	key := data["key"].(string)
+	value := data["value"]
+
+	// add data to kvs database
+	kvsDb.PutDataNoChecks(key, value)
+
+	// respond with success
+	c.JSON(http.StatusOK, gin.H{"result": "added"})
+}
+
+func repCloneRing(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"ring": ring})
+}
+
+func repCloneShardData(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": kvsDb})
+}
+
+func testDataDump(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"kvsDb": kvsDb,
+		"ring":  ring,
+		"view":  view,
+	})
 }

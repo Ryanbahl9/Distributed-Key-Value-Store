@@ -1,13 +1,6 @@
 package main
 
 import (
-	kvs_pkg "cse138/assignment_4/kvs"
-	ring_pkg "cse138/assignment_4/sharding"
-	view_pkg "cse138/assignment_4/view"
-	"encoding/json"
-	"io"
-	"log"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,55 +8,26 @@ import (
 
 const DEFAULT_TIMEOUT = time.Second
 
-var kvsDb kvs_pkg.KeyValStoreDatabase
-var view view_pkg.View
-var ring ring_pkg.Ring
+var kvsDb KeyValStoreDatabase
+var view View
+var ring Ring
 var localShardId int
 var localAddress string
 
-//TODO: Finish
-func deleteNode(node string) {
-
-}
-
-// Clones all the kvs data from the specified shard
-// to local kvs database
-// todo add more error checking
-func getShardData(shardId int) {
-
-	res, err := sendMsgToGroup(
-		removeLocalAddressFromMap(ring.Shards[shardId].Replicas),
-		"/rep/clone-shard-data",
-		http.MethodGet,
-		"application/json",
-		make([]byte, 1))
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var newKvsDb kvs_pkg.KeyValStoreDatabase
-
-	resBody, _ := io.ReadAll(res.Body)
-	json.Unmarshal(resBody, &newKvsDb)
-	kvsDb = newKvsDb
-}
-
-//TODO: Finish
-// This function runs through every key in the database
-// and re checks what shard it belongs to
-func shuffleKvsData() {
-	kvsDb.Lock()
-	defer kvsDb.Unlock()
-
-	// for key, _ := range kvsDb.Data {
-	// }
-}
-
 func main() {
 
-	localShardId = -1
+	// Parse Environment Variables
+	localAdd, initialView, initialShardCount, shardCountExists := parseEnvironmentVariables()
+	localAddress = localAdd
 
+	// Set Up Node
+	if shardCountExists {
+		initPrimaryNode(initialView, initialShardCount)
+	} else {
+		initTertiaryNode(initialView)
+	}
+
+	// Set Up Router
 	router := gin.Default()
 
 	// View Routes
@@ -90,18 +54,11 @@ func main() {
 
 	router.PUT("/rep/shard/add-member", repAddNodeToShard)
 	router.PUT("/rep/shard/reshard", repReshard)
-	router.GET("/rep/clone-shard-data", repGetCloneShardData)
+	router.PUT("/rep/shard/kvs", repPutKeyNoChecks)
+	router.GET("/rep/shard", repCloneRing)
+	router.GET("/rep/clone-shard-data", repCloneShardData)
+
+	router.GET("/test", testDataDump)
 
 	router.Run("localhost:8080")
-}
-
-// util functions
-func removeLocalAddressFromMap(mp map[string]struct{}) map[string]struct{} {
-	copyMp := make(map[string]struct{})
-	for key := range mp {
-		if key != localAddress {
-			copyMp[key] = struct{}{}
-		}
-	}
-	return copyMp
 }

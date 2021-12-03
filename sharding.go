@@ -1,4 +1,4 @@
-package ring_pkg
+package main
 
 import (
 	"errors"
@@ -15,19 +15,19 @@ var ErrNotEnoughNodes = errors.New("not enough nodes to provide fault tolerance 
 
 type Ring struct {
 	*sync.Mutex
-	VirtShards VirtShards
-	Shards     Shards
+	VirtShards VirtShards `json:"virt-shards"`
+	Shards     Shards     `json:"shards"`
 }
 
 type Shard struct {
-	Replicas map[string]struct{}
+	Replicas map[string]struct{} `json:"replicas"`
 }
 
 type Shards []Shard
 
 type VirtShard struct {
-	HashId  uint32
-	ShardId int
+	HashId  uint32 `json:"hash-id"`
+	ShardId int    `json:"shard-id"`
 }
 
 type VirtShards []VirtShard
@@ -78,8 +78,8 @@ func NewRing(numShards int, nodes map[string]struct{}) Ring {
 }
 
 // Given a piece of data, this function returns the id of the shard it should go to
-func (r Ring) GetShardId(id string) int {
-	i := r.search(id)
+func (r Ring) GetShardId(key string) int {
+	i := r.search(key)
 	if i >= len(r.VirtShards) {
 		i = 0
 	}
@@ -125,6 +125,14 @@ func (r Ring) AddNodeToShard(shardId int, node string) {
 	r.Lock()
 	defer r.Unlock()
 	r.Shards[shardId].Replicas[node] = struct{}{}
+}
+
+func (r Ring) RemoveNode(node string) {
+	r.Lock()
+	defer r.Unlock()
+	for _, shard := range r.Shards {
+		delete(shard.Replicas, node)
+	}
 }
 
 // These are hear so we can use the built in sort function on VirtShards structs

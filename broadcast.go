@@ -2,22 +2,14 @@ package main
 
 import (
 	"bytes"
-	ring_pkg "cse138/assignment_4/sharding"
 	"encoding/json"
 	"errors"
+	"io"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
-
-// func broadcastKVSDelete(key string, metadata map[string]int, sender string, view *View) {
-// 	dataMap := make(map[string]interface{})
-// 	dataMap["key"] = key
-// 	dataMap["causal-metadata"] = metadata
-// 	dataMap["sender"] = localAddress
-
-// 	go sendBroadcastMsg("PUT", dataMap, "/rep/kvs")
-// }
 
 func sendServiceUnavailable(c *gin.Context) {
 	println("sending service unavailable")
@@ -142,7 +134,7 @@ func broadcastAddNodeToShard(nodeAddress string, shardId int) {
 }
 
 // Wrapper for sendBroadcastMsg for resharding
-func broadcastReshard(r ring_pkg.Ring) {
+func broadcastReshard(r Ring) {
 	// build responce to broadcast
 	dataMap := make(map[string]interface{})
 	dataMap["ring"] = r
@@ -157,4 +149,83 @@ func broadcastReshard(r ring_pkg.Ring) {
 		"application/json",
 		jsonData)
 
+}
+
+// Wrapper for sendBroadcastMsg for put View
+func broadcastPutView(node string) {
+	// build responce to broadcast
+	dataMap := make(map[string]interface{})
+	dataMap["socket-address"] = node
+
+	// turn body data into string JSON
+	jsonData, _ := json.Marshal(dataMap)
+
+	sendBroadcastMsg(
+		removeLocalAddressFromMap(view.Nodes),
+		"/view",
+		http.MethodPut,
+		"application/json",
+		jsonData)
+}
+
+// Wrapper for sendBroadcastMsg for Delete View
+func broadcastDeleteView(node string) {
+	// build responce to broadcast
+	dataMap := make(map[string]interface{})
+	dataMap["socket-address"] = node
+
+	// turn body data into string JSON
+	jsonData, _ := json.Marshal(dataMap)
+
+	sendBroadcastMsg(
+		removeLocalAddressFromMap(view.Nodes),
+		"/view",
+		http.MethodDelete,
+		"application/json",
+		jsonData)
+}
+
+// asks the other nodes in the view for ring data
+func getRingData() Ring {
+	res, err := sendMsgToGroup(
+		removeLocalAddressFromMap(view.Nodes),
+		"/rep/shard",
+		http.MethodGet,
+		"application/json",
+		make([]byte, 0),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var newRing Ring
+	reqBody, _ := io.ReadAll(res.Body)
+	json.Unmarshal(reqBody, &newRing)
+	ring = newRing
+
+	return newRing
+
+}
+
+func sendKeyValNoChecks(key string, val interface{}, node string) {
+	// build responce to broadcast
+	dataMap := make(map[string]interface{})
+	dataMap["key"] = key
+	dataMap["value"] = val
+
+	// turn body data into string JSON
+	jsonData, _ := json.Marshal(dataMap)
+
+	go sendSingleMsg(
+		node,
+		"/rep/shard/kvs",
+		http.MethodPut,
+		"application/json",
+		jsonData)
+}
+
+func broadcastKeyValNoChecks(key string, val interface{}, nodes map[string]struct{}) {
+	for node := range nodes {
+		sendKeyValNoChecks(key, val, node)
+	}
 }
