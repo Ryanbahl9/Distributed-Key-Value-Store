@@ -14,13 +14,13 @@ func sendServiceUnavailable(c *gin.Context) {
 	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Causal dependencies not satisfied; try again later"})
 }
 
-// sends a single message to the node specified and returns the responce
-// If the responce code is 503 (Service Unavailable) is retries until
+// sends a single message to the node specified and returns the response
+// If the response code is 503 (Service Unavailable) is retries until
 // a different status code is returned or timeout
 func sendSingleMsg(node string, endpoint string, method string, contentType string, data []byte, shouldRetry bool) (*http.Response, error) {
 	nodeUrl := "http://" + node + endpoint
 
-	// Loop on doing request until responce or timeout
+	// Loop on doing request until response or timeout
 	for {
 		// Build request
 		req, err := http.NewRequest(method, nodeUrl, bytes.NewReader(data))
@@ -53,7 +53,7 @@ func sendSingleMsg(node string, endpoint string, method string, contentType stri
 // In other words, it picks a node, and if that node doesn't respond it moves to the
 // next node on the list
 func sendMsgToGroup(nodes map[string]struct{}, endpoint string, method string, contentType string, data []byte, shouldRetry bool) (*http.Response, error) {
-	// Send msg to each node in list until responce
+	// Send msg to each node in list until response
 	for node := range nodes {
 		res, err := sendSingleMsg(node, endpoint, method, contentType, data, shouldRetry)
 		if err == nil {
@@ -114,7 +114,7 @@ func broadcastKvsDelete(key string, metadata map[string]int, sender string) {
 
 // Wrapper for sendBroadcastMsg for adding node to shard
 func broadcastAddNodeToShard(nodeAddress string, shardId int) {
-	// build responce to broadcast
+	// build response to broadcast
 	dataMap := make(map[string]interface{})
 	dataMap["socket-address"] = nodeAddress
 	dataMap["shard-id"] = shardId
@@ -133,7 +133,7 @@ func broadcastAddNodeToShard(nodeAddress string, shardId int) {
 
 // Wrapper for sendBroadcastMsg for resharding
 func broadcastReshard(r *Ring) {
-	// build responce to broadcast
+	// build response to broadcast
 	dataMap := make(map[string]interface{})
 	dataMap["ring"] = r
 
@@ -151,7 +151,7 @@ func broadcastReshard(r *Ring) {
 
 // Wrapper for sendBroadcastMsg for put View
 func broadcastPutView(node string) {
-	// build responce to broadcast
+	// build response to broadcast
 	dataMap := make(map[string]interface{})
 	dataMap["socket-address"] = node
 
@@ -168,7 +168,7 @@ func broadcastPutView(node string) {
 
 // Wrapper for sendBroadcastMsg for Delete View
 func broadcastDeleteView(node string) {
-	// build responce to broadcast
+	// build response to broadcast
 	dataMap := make(map[string]interface{})
 	dataMap["socket-address"] = node
 
@@ -184,7 +184,7 @@ func broadcastDeleteView(node string) {
 }
 
 func sendKeyValNoChecks(key string, val interface{}, node string) {
-	// build responce to broadcast
+	// build response to broadcast
 	dataMap := make(map[string]interface{})
 	dataMap["key"] = key
 	dataMap["value"] = val
