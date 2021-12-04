@@ -23,7 +23,7 @@ hostBaseUrl = 'http://{}'.format(hostname)
 
 imageName = "asg4img"
 subnetName = "asg4net"
-subnetRange = "10.11.0.0/16"
+subnetRange = "10.10.0.0/16"
 containerPort = "8090"
 
 class InstanceConfig(collections.namedtuple('InstanceConfig', ['name', 'addr', 'published_port'])):
@@ -33,13 +33,13 @@ class InstanceConfig(collections.namedtuple('InstanceConfig', ['name', 'addr', '
     def __str__(self):
         return self.name
 
-alice = InstanceConfig(name='alice', addr='10.11.0.2', published_port=8082)
-bob   = InstanceConfig(name='bob',   addr='10.11.0.3', published_port=8083)
-carol = InstanceConfig(name='carol', addr='10.11.0.4', published_port=8084)
-dave  = InstanceConfig(name='dave',  addr='10.11.0.5', published_port=8085)
-erin  = InstanceConfig(name='erin',  addr='10.11.0.6', published_port=8086)
-frank = InstanceConfig(name='frank', addr='10.11.0.7', published_port=8087)
-grace = InstanceConfig(name='grace', addr='10.11.0.8', published_port=8088)
+alice = InstanceConfig(name='alice', addr='10.10.0.2', published_port=8082)
+bob   = InstanceConfig(name='bob',   addr='10.10.0.3', published_port=8083)
+carol = InstanceConfig(name='carol', addr='10.10.0.4', published_port=8084)
+dave  = InstanceConfig(name='dave',  addr='10.10.0.5', published_port=8085)
+erin  = InstanceConfig(name='erin',  addr='10.10.0.6', published_port=8086)
+frank = InstanceConfig(name='frank', addr='10.10.0.7', published_port=8087)
+grace = InstanceConfig(name='grace', addr='10.10.0.8', published_port=8088)
 # "grace" is an extra instance not included in "all_instances" or in the initial view
 all_instances = [alice, bob, carol, dave, erin, frank]
 viewStr = lambda instances: ','.join(r.socket_address for r in instances)
@@ -155,7 +155,6 @@ class TestHW4(unittest.TestCase):
         removeSubnet()
 
 
-    # Passed
     def test_a_get_shard_ids(self):
         '''Do all the instances return the same shard IDs?'''
 
