@@ -132,7 +132,7 @@ func proxyToShard(c *gin.Context, endpoint string, shardId int) {
 		return
 	}
 
-	// send client request to shard and get responce
+	// send client request to shard and get response
 	res, err := sendMsgToGroup(
 		removeLocalAddressFromMap(ring.Shards[shardId].Replicas),
 		endpoint,
@@ -145,7 +145,7 @@ func proxyToShard(c *gin.Context, endpoint string, shardId int) {
 		return
 	}
 
-	// send the responce from the shard back to the OG client
+	// send the response from the shard back to the OG client
 	resData, _ := io.ReadAll(res.Body)
 	c.Data(res.StatusCode, res.Header.Get("Content-Type"), resData)
 }
