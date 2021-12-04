@@ -343,7 +343,7 @@ func repPutKey(c *gin.Context) {
 	sender := data["sender"].(string)
 
 	// Check if correct shard
-	// if incorrect just update causal metaData, but don't actually stor the data
+	// if incorrect just update causal metaData, but don't actually store the data
 	shardId := ring.GetShardId(key)
 	if shardId != localShardId {
 		//just update the meta data and check error
