@@ -2,7 +2,7 @@
 CSE138 (Distributed Systems) Assignment 4 By Ryan Bahl and Chris Sterza
 
 ## Acknowledgments 
-N/A
+TEST
 
 ## Citations 
 1. Consistent hashing, a guide & Go library: [Link](https://medium.com/@sent0hil/consistent-hashing-a-guide-go-implementation-fe3421ac3e8f)
